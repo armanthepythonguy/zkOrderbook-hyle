@@ -1,13 +1,16 @@
-use risc0_zkvm::guest::env;
+#![no_main]
+#![no_std]
+
+extern crate alloc;
+
+use sdk::guest::GuestEnv;
+use sdk::guest::Risc0Env;
+
+use contract_orderbook_app::execute;
+
+risc0_zkvm::guest::entry!(main);
 
 fn main() {
-    // TODO: Implement your guest code here
-
-    // read the input
-    let input: u32 = env::read();
-
-    // TODO: do something with the input
-
-    // write public output to the journal
-    env::commit(&input);
+    let env = Risc0Env {};
+    env.commit(&execute(env.read()));
 }
