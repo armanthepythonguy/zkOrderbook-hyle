@@ -7,7 +7,8 @@ edition = "2021"
 sdk = { workspace = true }
 client-sdk = { workspace = true, features = ["rest", "risc0"] }
 contract-orderbook-app = { path = "../contract", package = "contract-orderbook-app"}
-
+contract-token = { path = "../../examples/simple-token/contract", package = "contract" }
+contract-identity = { path = "../../examples/simple-identity/contract" }
 methods = { path = "../methods", package="orderbook-methods"}
 methods-identity = { path = "../../examples/simple-identity/methods"}
 methods-token = { path = "../../examples/simple-token/methods", package = "methods"}
