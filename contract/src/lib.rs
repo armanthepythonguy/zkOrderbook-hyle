@@ -9,11 +9,6 @@ pub fn execute(contract_input: ContractInput) -> HyleOutput{
     let (input, orderbook_action) = sdk::guest::init_raw::<OrderBookAction>(contract_input);
     let orderbook_contract_name = input.blobs.get(input.index.0).unwrap().contract_name.clone();
 
-    let transfer_action =
-        sdk::utils::parse_blob::<ERC20Action>(input.blobs.as_slice(), &BlobIndex(1));
-
-    let transfer_action_contract_name = input.blobs.get(1).unwrap().contract_name.clone();
-
     let orderbook_state: OrderBookState = input.initial_state.clone().into();
 
     let mut orderbook_contract = OrderBookContract::new(
@@ -25,13 +20,17 @@ pub fn execute(contract_input: ContractInput) -> HyleOutput{
     let res = match orderbook_action{
 
         OrderBookAction::DepositAsset{} => {
+            let transfer_action =
+            sdk::utils::parse_blob::<ERC20Action>(input.blobs.as_slice(), &BlobIndex(1));
+    
+            let transfer_action_contract_name = input.blobs.get(1).unwrap().contract_name.clone();
+    
             orderbook_contract.deposit_asset(transfer_action, transfer_action_contract_name)
         }
 
-        OrderBookAction::InsertOrder{} => {
-            let order = sdk::utils::parse_blob::<Order>(input.blobs.as_slice(), &BlobIndex(2));
-            let market_name = input.blobs.get(2).unwrap().contract_name.clone();
-            orderbook_contract.insert_order(order, market_name)
+        OrderBookAction::InsertOrder { order_asset, order_type, order_price, order_quantity } => {
+            let order = Order { order_actor: input.identity.clone(), order_type: order_type, order_price: order_price, order_quantity: order_quantity };
+            orderbook_contract.insert_order(order, ContractName(order_asset))
         }
 
     };
@@ -43,7 +42,7 @@ pub fn execute(contract_input: ContractInput) -> HyleOutput{
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum OrderBookAction {
     DepositAsset{},
-    InsertOrder{},
+    InsertOrder{order_asset: String, order_type: OrderType, order_price: f64, order_quantity: u128},
 }
 
 #[derive(Encode, Decode, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -154,10 +153,13 @@ impl OrderBookContract{
         match order.order_type{
             OrderType::Bid => {
 
-                if(self.state.balances.get(&self.identity.clone()).unwrap().get(&market_name).unwrap() < &order.order_quantity){
+                if(self.state.balances.get(&self.identity.clone()).unwrap().get(&self.state.base_asset).unwrap() < &(order.order_price.round() as u128 * order.order_quantity)){
                     return Err(format!(
                         "Insufficient balance for {:?} - {:?}", self.identity.clone(), market_name.clone()
                     ));
+                }else{
+                    let amount = order.order_price.round() as u128 * order.order_quantity;
+                    self.state.balances.entry(self.identity.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e -= amount).or_insert(0);
                 }
 
                 match process_order(&mut order.clone(), market){
@@ -173,10 +175,12 @@ impl OrderBookContract{
             OrderType::Ask => {
 
 
-                if(self.state.balances.get(&self.identity.clone()).unwrap().get(&self.state.base_asset).unwrap() < &order.order_quantity){
+                if(self.state.balances.get(&self.identity.clone()).unwrap().get(&market_name).unwrap() < &order.order_quantity){
                     return Err(format!(
                         "Insufficient balance for {:?} - {:?}", self.identity.clone(), market_name.clone()
                     ));
+                }else{
+                    self.state.balances.entry(self.identity.clone()).or_insert(HashMap::new()).entry(market_name.clone()).and_modify(|e| *e -= order.order_quantity).or_insert(0);
                 }
 
                 match process_order(&mut order.clone(), market){
@@ -188,7 +192,6 @@ impl OrderBookContract{
                     None => {}
                 };
                 
-                market.bid_orders.push(order);
             }
         }
 
