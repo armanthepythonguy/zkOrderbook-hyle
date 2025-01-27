@@ -60,7 +60,7 @@ async fn main() {
 
         Commands::Register { token } => {
 
-            let initial_state = OrderBookState::new(ContractName(token));
+            let initial_state = OrderBookState::new(token);
 
             let register_tx = RegisterContractTransaction {
                 owner: "examples".to_string(),

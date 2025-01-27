@@ -68,9 +68,9 @@ pub struct Market {
 
 #[derive(Encode, Decode, Debug, Clone, Serialize, Deserialize)]
 pub struct OrderBookState{
-    pub base_asset: ContractName,
-    pub markets: HashMap<ContractName, Market>,
-    pub balances: HashMap<Identity, HashMap<ContractName, u128>>,
+    pub base_asset: String,
+    pub markets: HashMap<String, Market>,
+    pub balances: HashMap<String, HashMap<String, u128>>,
 }
 
 pub struct OrderBookContract{
@@ -80,7 +80,7 @@ pub struct OrderBookContract{
 }
 
 impl OrderBookState{
-    pub fn new(base: ContractName) -> Self{
+    pub fn new(base: String) -> Self{
         OrderBookState{
             markets: HashMap::new(),
             balances: HashMap::new(),
@@ -103,7 +103,7 @@ impl Market{
 
 impl OrderBookContract{
     
-    pub fn new(identity: Identity, contract_name: ContractName, base_asset: ContractName) -> Self{
+    pub fn new(identity: Identity, contract_name: ContractName, base_asset: String) -> Self{
         OrderBookContract{
             identity,
             contract_name,
@@ -140,7 +140,7 @@ impl OrderBookContract{
 
         let program_outputs = format!("Deposit success for {:?} - {:?}", self.identity.clone(), erc20_name.clone());
 
-        self.state.balances.entry(self.identity.clone()).or_insert(HashMap::new()).entry(erc20_name.clone()).and_modify(|e| *e += balance).or_insert(balance);
+        self.state.balances.entry(self.identity.0.clone()).or_insert(HashMap::new()).entry(erc20_name.0.clone()).and_modify(|e| *e += balance).or_insert(balance);
 
         Ok(program_outputs)
 
@@ -148,25 +148,25 @@ impl OrderBookContract{
 
     pub fn insert_order(&mut self, order: Order, market_name: ContractName) -> RunResult{
 
-        let market = self.state.markets.entry(market_name.clone()).or_insert(Market{ask_orders: Vec::new(), bid_orders: Vec::new()});
+        let market = self.state.markets.entry(market_name.0.clone()).or_insert(Market{ask_orders: Vec::new(), bid_orders: Vec::new()});
 
         match order.order_type{
             OrderType::Bid => {
 
-                if(self.state.balances.get(&self.identity.clone()).unwrap().get(&self.state.base_asset).unwrap() < &(order.order_price.round() as u128 * order.order_quantity)){
+                if(self.state.balances.get(&self.identity.0.clone()).unwrap().get(&self.state.base_asset).unwrap() < &(order.order_price.round() as u128 * order.order_quantity)){
                     return Err(format!(
                         "Insufficient balance for {:?} - {:?}", self.identity.clone(), market_name.clone()
                     ));
                 }else{
                     let amount = order.order_price.round() as u128 * order.order_quantity;
-                    self.state.balances.entry(self.identity.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e -= amount).or_insert(0);
+                    self.state.balances.entry(self.identity.0.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e -= amount).or_insert(0);
                 }
 
                 match process_order(&mut order.clone(), market){
                     Some((bid_actor, ask_actor, matched_quantity, matched_price)) => {
                         let matched_amount = matched_quantity as f64 * matched_price;
-                        self.state.balances.entry(bid_actor.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e += matched_amount as u128).or_insert(0);
-                        self.state.balances.entry(ask_actor.clone()).or_insert(HashMap::new()).entry(market_name.clone()).and_modify(|e| *e += matched_quantity).or_insert(0);
+                        self.state.balances.entry(bid_actor.0.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e += matched_amount as u128).or_insert(0);
+                        self.state.balances.entry(ask_actor.0.clone()).or_insert(HashMap::new()).entry(market_name.0.clone()).and_modify(|e| *e += matched_quantity).or_insert(0);
                     },
                     None => {}
                 };
@@ -175,19 +175,19 @@ impl OrderBookContract{
             OrderType::Ask => {
 
 
-                if(self.state.balances.get(&self.identity.clone()).unwrap().get(&market_name).unwrap() < &order.order_quantity){
+                if(self.state.balances.get(&self.identity.0.clone()).unwrap().get(&market_name.0.clone()).unwrap() < &order.order_quantity){
                     return Err(format!(
                         "Insufficient balance for {:?} - {:?}", self.identity.clone(), market_name.clone()
                     ));
                 }else{
-                    self.state.balances.entry(self.identity.clone()).or_insert(HashMap::new()).entry(market_name.clone()).and_modify(|e| *e -= order.order_quantity).or_insert(0);
+                    self.state.balances.entry(self.identity.0.clone()).or_insert(HashMap::new()).entry(market_name.0.clone()).and_modify(|e| *e -= order.order_quantity).or_insert(0);
                 }
 
                 match process_order(&mut order.clone(), market){
                     Some((bid_actor, ask_actor, matched_quantity, matched_price)) => {
                         let matched_amount = matched_quantity as f64 * matched_price;
-                        self.state.balances.entry(bid_actor.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e += matched_amount as u128).or_insert(0);
-                        self.state.balances.entry(ask_actor.clone()).or_insert(HashMap::new()).entry(market_name.clone()).and_modify(|e| *e += matched_quantity).or_insert(0);
+                        self.state.balances.entry(bid_actor.0.clone()).or_insert(HashMap::new()).entry(self.state.base_asset.clone()).and_modify(|e| *e += matched_amount as u128).or_insert(0);
+                        self.state.balances.entry(ask_actor.0.clone()).or_insert(HashMap::new()).entry(market_name.0.clone()).and_modify(|e| *e += matched_quantity).or_insert(0);
                     },
                     None => {}
                 };
