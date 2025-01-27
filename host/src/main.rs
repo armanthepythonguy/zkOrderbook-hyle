@@ -171,7 +171,7 @@ async fn main() {
                 initial_state: initial_identity_state.as_digest(),
                 identity: identity.clone(),
                 tx_hash: blob_tx.clone().into(),
-                private_blob: sdk::BlobData(vec![]),
+                private_blob: sdk::BlobData(cli.pass.as_bytes().to_vec()),
                 blobs: blobs.clone(),
                 index: sdk::BlobIndex(0),
             };
