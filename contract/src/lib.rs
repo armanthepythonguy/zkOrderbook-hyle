@@ -14,7 +14,7 @@ pub fn execute(contract_input: ContractInput) -> HyleOutput{
     let mut orderbook_contract = OrderBookContract::new(
         input.identity.clone(),
         orderbook_contract_name,
-        orderbook_state.base_asset,
+        orderbook_state,
     );
 
     let res = match orderbook_action{
@@ -101,13 +101,15 @@ impl Market{
 
 }
 
+
+
 impl OrderBookContract{
     
-    pub fn new(identity: Identity, contract_name: ContractName, base_asset: String) -> Self{
+    pub fn new(identity: Identity, contract_name: ContractName, state: OrderBookState) -> Self{
         OrderBookContract{
             identity,
             contract_name,
-            state: OrderBookState::new(base_asset),
+            state: state,
         }
     }
 
